@@ -13,7 +13,9 @@ dist/
 *.egg-info/
 
 # Training artifacts
-artifacts/
+# (best_model.pt and summary files are included for deployment)
+!artifacts/best_model.pt
+!artifacts/*.json
 logs/
 
 # OS/editor files
