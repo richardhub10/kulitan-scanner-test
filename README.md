@@ -85,6 +85,26 @@ Controls:
 
 The live window continuously shows the detected Kulitan label (example: `po`) and confidence.
 
+## 6) Website scanner (upload + camera)
+
+Run:
+
+```bash
+python web_scanner.py --checkpoint artifacts/best_model.pt --host 127.0.0.1 --port 5000
+```
+
+Open in browser:
+
+```text
+http://127.0.0.1:5000
+```
+
+What you can do on the site:
+- Upload an image and scan.
+- Start camera and capture a frame to scan.
+- See top predictions and confidence.
+- Low-confidence results are returned as `unknown`.
+
 Example output:
 
 ```json

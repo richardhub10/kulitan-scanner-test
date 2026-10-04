@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kulitan Web Scanner</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <h1>Kulitan Symbol Scanner</h1>
+      <p>Scan one Kulitan symbol at a time. The model ignores side text and predicts only the glyph.</p>
+
+      <div class="controls">
+        <label for="fileInput" class="label">Upload image</label>
+        <input id="fileInput" type="file" accept="image/*">
+        <button id="uploadScanBtn" class="btn">Scan Uploaded Image</button>
+      </div>
+
+      <div class="camera-wrap">
+        <video id="camera" autoplay playsinline></video>
+        <canvas id="captureCanvas" class="hidden"></canvas>
+        <div class="camera-actions">
+          <button id="startCameraBtn" class="btn">Start Camera</button>
+          <button id="captureScanBtn" class="btn">Capture And Scan</button>
+        </div>
+      </div>
+
+      <div id="result" class="result">
+        <div class="prediction" id="predictionText">Prediction: -</div>
+        <div id="confidenceText">Confidence: -</div>
+        <div id="reasonText" class="warning"></div>
+        <div id="topkText" class="topk"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -7,4 +7,5 @@ __all__ = [
     "preprocess",
     "predict",
     "train",
+    "web_app",
 ]
