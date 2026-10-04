@@ -105,6 +105,30 @@ What you can do on the site:
 - See top predictions and confidence.
 - Low-confidence results are returned as `unknown`.
 
+## 7) Deploy on Vercel
+
+Files already prepared for Vercel:
+- `vercel.json`
+- `api/index.py`
+
+Deploy steps:
+1. Push your latest code to GitHub.
+2. In Vercel, create a new project from your repository.
+3. Keep default framework settings (Other).
+4. Add environment variable `CHECKPOINT_PATH` with value `artifacts/best_model.pt`.
+5. Deploy.
+
+Optional environment variables:
+- `MIN_CONFIDENCE` (example: `0.70`)
+- `TOP_K` (example: `3`)
+- `UNKNOWN_LABEL` (example: `unknown`)
+- `ALLOW_NO_SYMBOL` (`true` or `false`)
+
+Important platform note:
+- Vercel serverless has strict execution and package size limits.
+- Large AI dependencies such as PyTorch can fail deployment or cold-start slowly.
+- If Vercel build fails because of model/runtime size, deploy backend API on Render/Railway and keep only the frontend on Vercel.
+
 Example output:
 
 ```json
