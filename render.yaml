@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: kulitan-scanner
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python web_scanner.py --host 0.0.0.0 --port $PORT --checkpoint artifacts/best_model.pt
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MIN_CONFIDENCE
+        value: "0.70"
+      - key: TOP_K
+        value: "3"

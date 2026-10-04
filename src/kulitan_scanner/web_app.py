@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 import base64
 import io
+import os
 from pathlib import Path
 from typing import Dict, List
 
+import requests
 import torch
 from flask import Flask, jsonify, render_template, request
 from PIL import Image
@@ -35,8 +37,7 @@ class KulitanPredictor:
         allow_no_symbol: bool,
     ) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        if not checkpoint_path.exists():
-            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+        checkpoint_path = _ensure_checkpoint(checkpoint_path)
 
         self.ckpt = torch.load(checkpoint_path, map_location=self.device)
         self.idx_to_label = {int(k): v for k, v in self.ckpt["idx_to_label"].items()}
@@ -122,6 +123,23 @@ def _decode_data_url_to_image(data_url: str) -> Image.Image:
     return Image.open(io.BytesIO(raw)).convert("RGB")
 
 
+def _ensure_checkpoint(checkpoint_path: Path) -> Path:
+    if checkpoint_path.exists():
+        return checkpoint_path
+
+    model_url = os.getenv("MODEL_URL", "").strip()
+    if not model_url:
+        raise FileNotFoundError(
+            f"Checkpoint not found: {checkpoint_path}. Set MODEL_URL to auto-download it at startup."
+        )
+
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    response = requests.get(model_url, timeout=120)
+    response.raise_for_status()
+    checkpoint_path.write_bytes(response.content)
+    return checkpoint_path
+
+
 def create_app(
     checkpoint: Path,
     min_confidence: float,
@@ -134,13 +152,18 @@ def create_app(
         template_folder=str(Path(__file__).parent / "templates"),
         static_folder=str(Path(__file__).parent / "static"),
     )
-    predictor = KulitanPredictor(
-        checkpoint_path=checkpoint,
-        min_confidence=min_confidence,
-        top_k=top_k,
-        unknown_label=unknown_label,
-        allow_no_symbol=allow_no_symbol,
-    )
+    predictor = None
+    predictor_error = ""
+    try:
+        predictor = KulitanPredictor(
+            checkpoint_path=checkpoint,
+            min_confidence=min_confidence,
+            top_k=top_k,
+            unknown_label=unknown_label,
+            allow_no_symbol=allow_no_symbol,
+        )
+    except Exception as exc:
+        predictor_error = str(exc)
 
     @app.get("/")
     def index():
@@ -149,6 +172,17 @@ def create_app(
     @app.post("/api/scan")
     def scan_api():
         try:
+            if predictor is None:
+                return (
+                    jsonify(
+                        {
+                            "error": "Model is not ready. Train first or set MODEL_URL.",
+                            "details": predictor_error,
+                        }
+                    ),
+                    503,
+                )
+
             if "file" in request.files and request.files["file"].filename:
                 file = request.files["file"]
                 image = Image.open(file.stream).convert("RGB")

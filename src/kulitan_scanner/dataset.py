@@ -56,6 +56,9 @@ def stratified_split(
     if val_size + test_size >= 1.0:
         raise ValueError("val_size + test_size must be < 1.0")
 
+    if val_size == 0.0 and test_size == 0.0:
+        return list(samples), [], []
+
     labels = [s.label for s in samples]
     train_samples, temp_samples = train_test_split(
         list(samples),

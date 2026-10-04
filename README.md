@@ -129,6 +129,21 @@ Important platform note:
 - Large AI dependencies such as PyTorch can fail deployment or cold-start slowly.
 - If Vercel build fails because of model/runtime size, deploy backend API on Render/Railway and keep only the frontend on Vercel.
 
+### Vercel failure fix (recommended)
+
+If you see an error like "Total bundle size exceeds maximum", use Render for the Python backend.
+
+Render quick steps:
+1. Push latest code (includes `render.yaml`).
+2. In Render, create a new Web Service from this GitHub repo.
+3. Render reads `render.yaml` automatically.
+4. Add environment variable `MODEL_URL` pointing to a direct download URL of your `best_model.pt` file.
+5. Deploy.
+
+Why `MODEL_URL` is needed:
+- `artifacts/best_model.pt` is usually not committed to GitHub.
+- On startup, the app now auto-downloads the checkpoint to `artifacts/best_model.pt`.
+
 Example output:
 
 ```json

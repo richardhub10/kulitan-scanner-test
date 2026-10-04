@@ -168,6 +168,13 @@ def export_report(
     y_pred: Iterable[int],
     idx_to_label: Dict[int, str],
 ) -> None:
+    y_true = list(y_true)
+    y_pred = list(y_pred)
+    if not y_true:
+        with (artifacts_dir / "test_report.json").open("w", encoding="utf-8") as fp:
+            json.dump({"message": "Test split is empty; no report generated."}, fp, indent=2)
+        return
+
     labels = list(sorted(idx_to_label))
     target_names = [idx_to_label[idx] for idx in labels]
     report = classification_report(y_true, y_pred, labels=labels, target_names=target_names, output_dict=True, zero_division=0)
@@ -186,10 +193,21 @@ def main() -> None:
     samples = discover_samples(args.data_dir)
     label_to_idx = build_label_map(samples)
 
+    class_counts = Counter(s.label for s in samples)
+    min_count = min(class_counts.values()) if class_counts else 0
+    tiny_dataset_mode = min_count < 3
+    val_size = args.val_size
+    test_size = args.test_size
+    if tiny_dataset_mode:
+        # Prevent stratified split errors when many classes have too few examples.
+        val_size = 0.0
+        test_size = 0.0
+        print("Tiny-dataset mode: using all data for training (no val/test split)")
+
     train_samples, val_samples, test_samples = stratified_split(
         samples,
-        val_size=args.val_size,
-        test_size=args.test_size,
+        val_size=val_size,
+        test_size=test_size,
         seed=args.seed,
     )
 
@@ -231,11 +249,17 @@ def main() -> None:
     optimizer = AdamW(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
 
     best_val_acc = 0.0
+    best_score = -1.0
     bad_epochs = 0
 
     for epoch in range(1, args.epochs + 1):
         train_loss, train_acc, _, _ = run_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, val_acc, _, _ = run_epoch(model, val_loader, criterion, None, device)
+        if len(val_ds) > 0:
+            val_loss, val_acc, _, _ = run_epoch(model, val_loader, criterion, None, device)
+            score_for_checkpoint = val_acc
+        else:
+            val_loss, val_acc = 0.0, 0.0
+            score_for_checkpoint = train_acc
 
         print(
             f"Epoch {epoch:03d}/{args.epochs:03d} "
@@ -243,8 +267,12 @@ def main() -> None:
             f"| val_loss={val_loss:.4f} val_acc={val_acc:.4f}"
         )
 
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
+        if score_for_checkpoint > best_score:
+            best_score = score_for_checkpoint
+            if len(val_ds) > 0:
+                best_val_acc = val_acc
+            else:
+                best_val_acc = train_acc
             bad_epochs = 0
             save_checkpoint(
                 args.artifacts_dir,
@@ -258,7 +286,7 @@ def main() -> None:
         else:
             bad_epochs += 1
 
-        if bad_epochs >= args.patience:
+        if len(val_ds) > 0 and bad_epochs >= args.patience:
             print(f"Early stopping triggered after {epoch} epochs")
             break
 
