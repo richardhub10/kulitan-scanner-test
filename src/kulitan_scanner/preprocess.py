@@ -99,17 +99,37 @@ def extract_symbol_region(
         return area * (1.0 + 0.45 * left_bias)
 
     best_area, (min_x, min_y, max_x, max_y) = max(candidates, key=score_component)
+    glyph_w = max_x - min_x + 1
+    glyph_h = max_y - min_y + 1
 
-    pad_x = int((max_x - min_x + 1) * padding_ratio)
-    pad_y = int((max_y - min_y + 1) * padding_ratio)
+    # Merge nearby components (diacritics/garlit, multi-part strokes)
+    merged_min_x, merged_min_y = min_x, min_y
+    merged_max_x, merged_max_y = max_x, max_y
+    merged_area = best_area
 
-    x0 = max(0, min_x - pad_x)
-    y0 = max(0, min_y - pad_y)
-    x1 = min(w - 1, max_x + pad_x)
-    y1 = min(h - 1, max_y + pad_y)
+    max_gap_x = max(25, int(glyph_w * 0.8))
+    max_gap_y = max(25, int(glyph_h * 0.8))
+
+    for area, (cx0, cy0, cx1, cy1) in candidates:
+        dist_x = max(0, max(cx0 - merged_max_x, merged_min_x - cx1))
+        dist_y = max(0, max(cy0 - merged_max_y, merged_min_y - cy1))
+        if dist_x <= max_gap_x and dist_y <= max_gap_y:
+            merged_min_x = min(merged_min_x, cx0)
+            merged_min_y = min(merged_min_y, cy0)
+            merged_max_x = max(merged_max_x, cx1)
+            merged_max_y = max(merged_max_y, cy1)
+            merged_area += area
+
+    pad_x = int((merged_max_x - merged_min_x + 1) * padding_ratio)
+    pad_y = int((merged_max_y - merged_min_y + 1) * padding_ratio)
+
+    x0 = max(0, merged_min_x - pad_x)
+    y0 = max(0, merged_min_y - pad_y)
+    x1 = min(w - 1, merged_max_x + pad_x)
+    y1 = min(h - 1, merged_max_y + pad_y)
 
     cropped = image.crop((x0, y0, x1 + 1, y1 + 1))
-    symbol_ratio = best_area / float(h * w)
+    symbol_ratio = merged_area / float(h * w)
 
     return SymbolExtractionResult(
         image=cropped,
